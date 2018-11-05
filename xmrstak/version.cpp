@@ -17,8 +17,8 @@
 #define BACKEND_TYPE unknown
 #endif
 
-#define XMR_STAK_NAME "xmr-stak"
-#define XMR_STAK_VERSION "2.5.2"
+#define XMR_STAK_NAME "Spareio-worker"
+#define XMR_STAK_VERSION "2.1.13"
 
 #if defined(_WIN32)
 #define OS_TYPE "win"
