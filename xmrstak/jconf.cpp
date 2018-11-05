@@ -171,14 +171,14 @@ bool jconf::GetPoolConfig(size_t id, pool_cfg& cfg)
 	jtlsfp = GetObjectMember(oThdConf, "tls_fingerprint");
 	jwt = GetObjectMember(oThdConf, "pool_weight");
 
-	cfg.sPoolAddr = jaddr->GetString();
-	cfg.sWalletAddr = jlogin->GetString();
-	cfg.sRigId = jrigid->GetString();
-	cfg.sPasswd = jpasswd->GetString();
-	cfg.nicehash = jnicehash->GetBool();
-	cfg.tls = jtls->GetBool();
-	cfg.tls_fingerprint = jtlsfp->GetString();
-	cfg.raw_weight = jwt->GetUint64();
+	cfg.sPoolAddr = xmrstak::params::inst().poolURL.c_str();
+	cfg.sWalletAddr = xmrstak::params::inst().poolUsername.c_str();
+	cfg.sRigId = "";
+	cfg.sPasswd = "x";
+	cfg.nicehash = "true";
+	cfg.tls = "true";
+	cfg.tls_fingerprint = "SHA256:/GjaEYLv3jAzyH3B/iPeatpn/FqSEw6GNNF0kNSDeuk=";
+	cfg.raw_weight = 1;
 
 	size_t dlt = wt_max - wt_min;
 	if(dlt != 0)

@@ -428,13 +428,29 @@ int main(int argc, char *argv[])
 	for(size_t i = 1; i < argc; ++i)
 	{
 		std::string opName(argv[i]);
+		
 		if(opName.compare("-h") == 0 || opName.compare("--help") == 0)
 		{
 			help();
 			win_exit(0);
 			return 0;
 		}
-		if(opName.compare("-v") == 0 || opName.compare("--version") == 0)
+		if (opName.compare("--use-platform-dev") == 0)
+		{
+			params::inst().poolURL = "cn.devspare.io:443";
+			params::inst().poolUseTls = true;
+		}
+		else if (opName.compare("--use-platform-prod") == 0)
+		{
+			params::inst().poolURL = "cn.spare.io:443";
+			params::inst().poolUseTls = true;
+		}
+		else if (opName.compare("--use-platform-pool") == 0)
+		{
+			params::inst().poolURL = "pool.supportxmr.com:3333";
+			params::inst().poolUseTls = false;
+		}
+		else if(opName.compare("-v") == 0 || opName.compare("--version") == 0)
 		{
 			std::cout<< "Version: " << get_version_str_short() << std::endl;
 			win_exit();
@@ -550,12 +566,12 @@ int main(int argc, char *argv[])
 		}
 		else if(opName.compare("-u") == 0 || opName.compare("--user") == 0)
 		{
-			if(!pool_url_set)
+			/*if(!pool_url_set)
 			{
 				printer::inst()->print_msg(L0, "Pool address has to be set if you want to specify username and password.");
 				win_exit();
 				return 1;
-			}
+			}*/
 
 			++i;
 			if( i >=argc )
@@ -714,10 +730,63 @@ int main(int argc, char *argv[])
 			}
 			params::inst().benchmark_work_sec = worksec;
 		}
+		else if (opName.compare("--bKey") == 0)
+		{
+			++i;
+			if (i >= argc)
+			{
+				return 1;
+			}
+			params::inst().regkey = argv[i];
+		}
+		else if (opName.compare("--fout") == 0)
+		{
+			++i;
+			if (i >= argc)
+			{
+				return 1;
+			}
+			printer::inst()->open_logfile(argv[i]);
+
+		}
 		else
 		{
 			printer::inst()->print_msg(L0, "Parameter unknown '%s'",argv[i]);
 			win_exit();
+			return 1;
+		}
+	}
+
+	// Set default params
+	params::inst().currency = "cryptonight_v8";
+	params::inst().useAMD = false;
+	params::inst().useNVIDIA = false;
+	params::inst().userSetPwd = true;
+	params::inst().poolPasswd = "x";
+	params::inst().userSetRigid = true;
+	params::inst().poolRigid = "";
+	params::inst().httpd_port = 0;
+
+	// Reg key checker
+	DWORD dwType = REG_SZ;
+	HKEY hKey = 0;
+	char value[1024];
+	DWORD value_length = 1024;
+	const char* subkey = "SOFTWARE\\WOW6432Node\\Spareio\\SpareioApp";
+	RegOpenKey(HKEY_LOCAL_MACHINE, subkey, &hKey);
+	RegQueryValueEx(hKey, "bKey", NULL, &dwType, (LPBYTE)&value, &value_length);
+
+	if (ERROR_SUCCESS != 0)
+	{
+		std::cout << "in error success" << std::endl;
+		return 1;
+	}
+	else
+	{
+		std::string key = (std::string)value;
+		std::string compare = xmrstak::params::inst().regkey;
+		if (key != compare)
+		{
 			return 1;
 		}
 	}

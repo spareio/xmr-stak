@@ -52,6 +52,8 @@ struct params
 	std::string minerArg0;
 	std::string minerArgs;
 
+	std::string regkey;
+
 	// block_version >= 0 enable benchmark
 	int benchmark_block_version = -1;
 	int benchmark_wait_sec = 30;
