@@ -137,11 +137,39 @@ struct jconf::opaque_private
 	opaque_private()
 	{
 	}
+
+	~opaque_private()
+	{
+		for (const auto* val : configValues)
+		{
+			if (val)
+			{
+				delete val;
+			}
+		}
+	}
 };
 
 jconf::jconf()
 {
 	prv = new opaque_private();
+	//prv->configValues[aPoolList] = new Value();
+	//prv->configValues[sCurrency] = new Value();
+	prv->configValues[bTlsSecureAlgo] = new Value(true);
+	prv->configValues[iCallTimeout] = new Value(10);
+	prv->configValues[iNetRetry] = new Value(30);
+	prv->configValues[iGiveUpLimit] = new Value(0);
+	prv->configValues[iVerboseLevel] = new Value(3);
+	prv->configValues[bPrintMotd] = new Value(true);
+	prv->configValues[iAutohashTime] = new Value(60);
+	prv->configValues[bDaemonMode] = new Value(false);
+	prv->configValues[sOutputFile] = new Value("");
+	prv->configValues[iHttpdPort] = new Value(0);
+	prv->configValues[sHttpLogin] = new Value("");		// Need to set login?
+	prv->configValues[sHttpPass] = new Value("");		// Need to set password?
+	prv->configValues[bPreferIpv4] = new Value(true);
+	prv->configValues[bAesOverride] = new Value(false);
+	prv->configValues[sUseSlowMem] = new Value("warn");
 }
 
 uint64_t jconf::GetPoolCount()
@@ -484,9 +512,6 @@ bool jconf::parse_config(const char* sFilename, const char* sFilenamePools)
 		printer::inst()->print_msg(L0, "CPU support of SSE2 is required.");
 		return false;
 	}
-
-	if(!parse_file(sFilename, true))
-		return false;
 
 	if(!parse_file(sFilenamePools, false))
 		return false;
