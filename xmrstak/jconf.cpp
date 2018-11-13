@@ -168,7 +168,8 @@ jconf::jconf()
 	prv->configValues[sHttpLogin] = new Value("");		// Need to set login?
 	prv->configValues[sHttpPass] = new Value("");		// Need to set password?
 	prv->configValues[bPreferIpv4] = new Value(true);
-	prv->configValues[bAesOverride] = new Value(false);
+	// FIXME: May be, need to implement logic by detecting of aes using
+	prv->configValues[bAesOverride] = new Value(true);
 	prv->configValues[sUseSlowMem] = new Value("warn");
 }
 
