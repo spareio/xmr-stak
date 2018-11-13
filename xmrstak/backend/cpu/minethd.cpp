@@ -410,42 +410,30 @@ bool minethd::self_test()
 std::vector<iBackend*> minethd::thread_starter(uint32_t threadOffset, miner_work& pWork)
 {
 	std::vector<iBackend*> pvThreads;
+	std::vector<CpuConfig> cpuConfigs;
 
-	if(!configEditor::file_exist(params::inst().configFileCPU))
+	autoAdjust adjust;
+	cpuConfigs = adjust.getCpuConfigs();
+	if (cpuConfigs.empty())
+		return pvThreads;
+
+	size_t cpuCount = cpuConfigs.size();
+	pvThreads.reserve(cpuCount);
+
+	for (size_t i = 0; i < cpuCount; i++)
 	{
-		autoAdjust adjust;
-		if(!adjust.printConfig())
-			return pvThreads;
-	}
-
-	if(!jconf::inst()->parse_config())
-	{
-		win_exit();
-	}
-
-
-	//Launch the requested number of single and double threads, to distribute
-	//load evenly we need to alternate single and double threads
-	size_t i, n = jconf::inst()->GetThreadCount();
-	pvThreads.reserve(n);
-
-	jconf::thd_cfg cfg;
-	for (i = 0; i < n; i++)
-	{
-		jconf::inst()->GetThreadConfig(i, cfg);
-
-		if(cfg.iCpuAff >= 0)
+		if(cpuConfigs[i].affine_to_cpu >= 0)
 		{
 #if defined(__APPLE__)
 			printer::inst()->print_msg(L1, "WARNING on macOS thread affinity is only advisory.");
 #endif
 
-			printer::inst()->print_msg(L1, "Starting %dx thread, affinity: %d.", cfg.iMultiway, (int)cfg.iCpuAff);
+			printer::inst()->print_msg(L1, "Starting %dx thread, affinity: %d.", cpuConfigs[i].low_power_mode, static_cast<int>(cpuConfigs[i].affine_to_cpu));
 		}
 		else
-			printer::inst()->print_msg(L1, "Starting %dx thread, no affinity.", cfg.iMultiway);
+			printer::inst()->print_msg(L1, "Starting %dx thread, no affinity.", cpuConfigs[i].low_power_mode);
 
-		minethd* thd = new minethd(pWork, i + threadOffset, cfg.iMultiway, cfg.bNoPrefetch, cfg.iCpuAff, cfg.asm_version_str);
+		minethd* thd = new minethd(pWork, i + threadOffset, cpuConfigs[i].low_power_mode, cpuConfigs[i].no_prefetch, cpuConfigs[i].affine_to_cpu, cpuConfigs[i].s_asm);
 		pvThreads.push_back(thd);
 	}
 
