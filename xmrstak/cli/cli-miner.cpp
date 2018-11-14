@@ -792,10 +792,6 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	// check if we need a guided start
-	if(!configEditor::file_exist(params::inst().configFilePools))
-		do_guided_pool_config();
-
 	if(!jconf::inst()->parse_config(params::inst().configFile.c_str(), params::inst().configFilePools.c_str()))
 	{
 		win_exit();

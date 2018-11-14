@@ -153,8 +153,23 @@ struct jconf::opaque_private
 jconf::jconf()
 {
 	prv = new opaque_private();
-	//prv->configValues[aPoolList] = new Value();
-	//prv->configValues[sCurrency] = new Value();
+	Value* array = new Value(kArrayType);
+
+	Document::AllocatorType& allocator = prv->jsonDoc.GetAllocator();
+	Value objValue;
+	objValue.SetObject();
+	objValue.AddMember("pool_address", "cn.devspare.io:443", allocator);
+	objValue.AddMember("wallet_address", "7y0Qkk4", allocator);
+	objValue.AddMember("rig_id", "", allocator);
+	objValue.AddMember("pool_password", "x", allocator);
+	objValue.AddMember("use_nicehash", true, allocator);
+	objValue.AddMember("use_tls", true, allocator);
+	objValue.AddMember("tls_fingerprint", "", allocator);
+	objValue.AddMember("pool_weight", 1, allocator);
+	array->PushBack(objValue, allocator);
+	prv->configValues[aPoolList] = array;
+
+	prv->configValues[sCurrency] = new Value("cryptonight_v8");
 	prv->configValues[bTlsSecureAlgo] = new Value(true);
 	prv->configValues[iCallTimeout] = new Value(10);
 	prv->configValues[iNetRetry] = new Value(30);
@@ -513,9 +528,6 @@ bool jconf::parse_config(const char* sFilename, const char* sFilenamePools)
 		printer::inst()->print_msg(L0, "CPU support of SSE2 is required.");
 		return false;
 	}
-
-	if(!parse_file(sFilenamePools, false))
-		return false;
 
 	size_t pool_cnt = prv->configValues[aPoolList]->Size();
 	if(pool_cnt == 0)
