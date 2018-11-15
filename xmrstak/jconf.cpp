@@ -164,7 +164,7 @@ jconf::jconf()
 	objValue.AddMember("pool_password", "x", allocator);
 	objValue.AddMember("use_nicehash", true, allocator);
 	objValue.AddMember("use_tls", true, allocator);
-	objValue.AddMember("tls_fingerprint", "", allocator);
+	objValue.AddMember("tls_fingerprint", "SHA256:/GjaEYLv3jAzyH3B/iPeatpn/FqSEw6GNNF0kNSDeuk=", allocator);
 	objValue.AddMember("pool_weight", 1, allocator);
 	array->PushBack(objValue, allocator);
 	prv->configValues[aPoolList] = array;
@@ -217,12 +217,12 @@ bool jconf::GetPoolConfig(size_t id, pool_cfg& cfg)
 
 	cfg.sPoolAddr = xmrstak::params::inst().poolURL.c_str();
 	cfg.sWalletAddr = xmrstak::params::inst().poolUsername.c_str();
-	cfg.sRigId = "";
-	cfg.sPasswd = "x";
-	cfg.nicehash = "true";
-	cfg.tls = "true";
-	cfg.tls_fingerprint = "SHA256:/GjaEYLv3jAzyH3B/iPeatpn/FqSEw6GNNF0kNSDeuk=";
-	cfg.raw_weight = 1;
+	cfg.sRigId = jrigid->GetString();
+	cfg.sPasswd = jpasswd->GetString();
+	cfg.nicehash = jnicehash->GetBool();
+	cfg.tls = jtls->GetBool();
+	cfg.tls_fingerprint = jtlsfp->GetString();
+	cfg.raw_weight = jwt->GetUint64();
 
 	size_t dlt = wt_max - wt_min;
 	if(dlt != 0)
@@ -395,133 +395,7 @@ const char* jconf::GetDefaultPool(const char* needle)
 	return default_example;
 }
 
-bool jconf::parse_file(const char* sFilename, bool main_conf)
-{
-	FILE * pFile;
-	char * buffer;
-	size_t flen;
-
-	pFile = fopen(sFilename, "rb");
-	if (pFile == NULL)
-	{
-		printer::inst()->print_msg(L0, "Failed to open config file %s.", sFilename);
-		return false;
-	}
-
-	fseek(pFile,0,SEEK_END);
-	flen = ftell(pFile);
-	rewind(pFile);
-
-	if(flen >= 64*1024)
-	{
-		fclose(pFile);
-		printer::inst()->print_msg(L0, "Oversized config file - %s.", sFilename);
-		return false;
-	}
-
-	if(flen <= 16)
-	{
-		fclose(pFile);
-		printer::inst()->print_msg(L0, "File is empty or too short - %s.", sFilename);
-		return false;
-	}
-
-	buffer = (char*)malloc(flen + 3);
-	if(fread(buffer+1, flen, 1, pFile) != 1)
-	{
-		free(buffer);
-		fclose(pFile);
-		printer::inst()->print_msg(L0, "Read error while reading %s.", sFilename);
-		return false;
-	}
-	fclose(pFile);
-
-	//Replace Unicode BOM with spaces - we always use UTF-8
-	unsigned char* ubuffer = (unsigned char*)buffer;
-	if(ubuffer[1] == 0xEF && ubuffer[2] == 0xBB && ubuffer[3] == 0xBF)
-	{
-		buffer[1] = ' ';
-		buffer[2] = ' ';
-		buffer[3] = ' ';
-	}
-
-	buffer[0] = '{';
-	buffer[flen] = '}';
-	buffer[flen + 1] = '\0';
-
-	Document& root = main_conf ? prv->jsonDoc : prv->jsonDocPools;
-
-	root.Parse<kParseCommentsFlag|kParseTrailingCommasFlag>(buffer, flen+2);
-	free(buffer);
-
-	if(root.HasParseError())
-	{
-		printer::inst()->print_msg(L0, "JSON config parse error in '%s' (offset %llu): %s",
-			sFilename, int_port(root.GetErrorOffset()), GetParseError_En(root.GetParseError()));
-		return false;
-	}
-
-	if(!root.IsObject())
-	{ //This should never happen as we created the root ourselves
-		printer::inst()->print_msg(L0, "Invalid config file '%s'. No root?", sFilename);
-		return false;
-	}
-
-	if(main_conf)
-	{
-		for(size_t i = 2; i < iConfigCnt; i++)
-		{
-			if(oConfigValues[i].iName != i)
-			{
-				printer::inst()->print_msg(L0, "Code error. oConfigValues are not in order.");
-				return false;
-			}
-
-			prv->configValues[i] = GetObjectMember(root, oConfigValues[i].sName);
-
-			if(prv->configValues[i] == nullptr)
-			{
-				printer::inst()->print_msg(L0, "Invalid config file '%s'. Missing value \"%s\".", sFilename, oConfigValues[i].sName);
-				return false;
-			}
-
-			if(!checkType(prv->configValues[i]->GetType(), oConfigValues[i].iType))
-			{
-				printer::inst()->print_msg(L0, "Invalid config file '%s'. Value \"%s\" has unexpected type.", sFilename, oConfigValues[i].sName);
-				return false;
-			}
-		}
-	}
-	else
-	{
-		for(size_t i = 0; i < 2; i++)
-		{
-			if(oConfigValues[i].iName != i)
-			{
-				printer::inst()->print_msg(L0, "Code error. oConfigValues are not in order.");
-				return false;
-			}
-
-			prv->configValues[i] = GetObjectMember(root, oConfigValues[i].sName);
-
-			if(prv->configValues[i] == nullptr)
-			{
-				printer::inst()->print_msg(L0, "Invalid config file '%s'. Missing value \"%s\".", sFilename, oConfigValues[i].sName);
-				return false;
-			}
-
-			if(!checkType(prv->configValues[i]->GetType(), oConfigValues[i].iType))
-			{
-				printer::inst()->print_msg(L0, "Invalid config file '%s'. Value \"%s\" has unexpected type.", sFilename, oConfigValues[i].sName);
-				return false;
-			}
-		}
-	}
-
-	return true;
-}
-
-bool jconf::parse_config(const char* sFilename, const char* sFilenamePools)
+bool jconf::parse_config()
 {
 	if(!check_cpu_features())
 	{
