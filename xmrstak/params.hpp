@@ -29,12 +29,12 @@ struct params
 
 	bool poolUseTls = false;
 	std::string poolURL;
-	bool userSetPwd = false;
+	bool userSetPwd{ true };
 	std::string poolPasswd;
-	bool userSetRigid = false;
+	bool userSetRigid{ true };
 	std::string poolRigid;
 	std::string poolUsername;
-	bool nicehashMode = false;
+	bool nicehashMode{ true };
 
 	static constexpr int32_t httpd_port_unset = -1;
 	static constexpr int32_t httpd_port_disabled = 0;
@@ -42,8 +42,6 @@ struct params
 
 	std::string currency;
 
-	std::string configFile;
-	std::string configFilePools;
 	std::string configFileAMD;
 	std::string configFileNVIDIA;
 	std::string configFileCPU;
@@ -62,13 +60,11 @@ struct params
 	params() :
 		binaryName("xmr-stak"),
 		executablePrefix(""),
-		useAMD(true),
+		useAMD(false),
 		AMDCache(true),
-		useNVIDIA(true),
+		useNVIDIA(false),
 		useCPU(true),
 		openCLVendor("AMD"),
-		configFile("config.txt"),
-		configFilePools("pools.txt"),
 		configFileAMD("amd.txt"),
 		configFileCPU("cpu.txt"),
 		configFileNVIDIA("nvidia.txt")

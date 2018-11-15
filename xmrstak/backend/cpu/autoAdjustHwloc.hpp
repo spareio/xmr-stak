@@ -22,6 +22,14 @@ namespace xmrstak
 namespace cpu
 {
 
+struct CpuConfig
+{
+	bool low_power_mode;
+	bool no_prefetch;
+	std::string s_asm;
+	size_t affine_to_cpu;
+};
+
 class autoAdjust
 {
 public:
@@ -35,14 +43,13 @@ public:
 		halfHashMemSize = hashMemSize / 2u;
 	}
 
-	bool printConfig()
+	std::vector<CpuConfig> getCpuConfigs()
 	{
-
+		std::vector<CpuConfig> cpuConfigs;
 		hwloc_topology_t topology;
 		hwloc_topology_init(&topology);
 		hwloc_topology_load(topology);
 
-		std::string conf;
 		configEditor configTpl{};
 
 		// load the template of the backend config into a char variable
@@ -68,28 +75,19 @@ public:
 
 			for(uint32_t id : results)
 			{
-				conf += std::string("    { \"low_power_mode\" : ");
-				conf += std::string((id & 0x8000000) != 0 ? "true" : "false");
-				conf += std::string(", \"no_prefetch\" : true, \"asm\" : \"auto\", \"affine_to_cpu\" : ");
-				conf += std::to_string(id & 0x7FFFFFF);
-				conf += std::string(" },\n");
+				cpuConfigs.push_back({ ((id & 0x8000000) != 0) , true, "auto", (id & 0x7FFFFFF) });
 			}
 		}
 		catch(const std::runtime_error& err)
 		{
-			// \todo add fallback to default auto adjust
-			conf += std::string("    { \"low_power_mode\" : false");
-			conf += std::string(", \"no_prefetch\" : true, \"asm\" : \"off\", \"affine_to_cpu\" : false },\n");
+			cpuConfigs.push_back({ false , true, "off", 0 });
 			printer::inst()->print_msg(L0, "Autoconf FAILED: %s. Create config for a single thread.", err.what());
 		}
 
-		configTpl.replace("CPUCONFIG",conf);
-		configTpl.write(params::inst().configFileCPU);
-		printer::inst()->print_msg(L0, "CPU configuration stored in file '%s'", params::inst().configFileCPU.c_str());
 		/* Destroy topology object. */
 		hwloc_topology_destroy(topology);
 
-		return true;
+		return cpuConfigs;
 	}
 
 private:
