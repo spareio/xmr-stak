@@ -177,7 +177,7 @@ jconf::jconf()
 	prv->configValues[iVerboseLevel] = new Value(3);
 	prv->configValues[bPrintMotd] = new Value(true);
 	prv->configValues[iAutohashTime] = new Value(60);
-	prv->configValues[bDaemonMode] = new Value(false);
+	prv->configValues[bDaemonMode] = new Value(true);
 	prv->configValues[sOutputFile] = new Value("");
 	prv->configValues[iHttpdPort] = new Value(0);
 	prv->configValues[sHttpLogin] = new Value("");		// Need to set login?
