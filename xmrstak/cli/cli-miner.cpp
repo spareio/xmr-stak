@@ -21,6 +21,12 @@
   *
   */
 
+#include "spareio-core/NetworkManagerHelper.h"
+#include "spareio-core/TelemetryHelper.h"
+#include "spareio-core/Periodic.h"
+#include "spareio-core/RegistryHelper.h"
+#include "spareio-core/ScopeExit.hpp"
+
 #include "xmrstak/misc/executor.hpp"
 #include "xmrstak/backend/miner_work.hpp"
 #include "xmrstak/backend/globalStates.hpp"
@@ -55,7 +61,31 @@
 #	include "xmrstak/misc/uac.hpp"
 #endif // _WIN32
 
+#include <boost/program_options.hpp>
+#include <boost/filesystem/operations.hpp>
+#include <boost/filesystem/fstream.hpp>
+
 int do_benchmark(int block_version, int wait_sec, int work_sec);
+
+const std::string MENU_ITEM_HELP = "help";
+const std::string MENU_ITEM_USER = "user";
+const std::string MENU_ITEM_FILENAME = "fout";
+const std::string MENU_ITEM_ONLINE_TIMEOUT = "online_timeout";
+const std::string MENU_ITEM_TELEMETRY_TYPE = "telemetry_type";
+const std::string MENU_ITEM_BKEY = "bKey";
+const std::string MENU_USE_PLATFORM = "use-platform";
+const std::string LOCK_FILENAME = "lock.txt";
+
+namespace po = boost::program_options;
+po::options_description desc{ "Allowed options" };
+po::variables_map vm;
+
+std::string workerId;
+std::string fileName;
+std::string telemetryType;
+std::string bKey;
+std::string usePlatform;
+uint64_t onlineTimeout;
 
 void help()
 {
@@ -130,6 +160,33 @@ int main(int argc, char *argv[])
 
 	srand(time(0));
 
+    const std::string menuItemHelp = MENU_ITEM_HELP + std::string(",h");
+    const std::string menuItemUser = MENU_ITEM_USER + std::string(",u");
+    const std::string menuItemFout = MENU_ITEM_FILENAME + std::string(",f");
+    const std::string menuItemOnlineTimeout = MENU_ITEM_ONLINE_TIMEOUT + std::string(",t");
+    const std::string menuItemTelemetryType = MENU_ITEM_TELEMETRY_TYPE + std::string(",p");
+
+    desc.add_options()
+        (menuItemHelp.c_str(), "produce help message")
+        (menuItemUser.c_str(), po::value<std::string>(&workerId)->composing(), "set worker id")
+        (menuItemOnlineTimeout.c_str(), po::value<uint64_t>(&onlineTimeout)->default_value(60), "set health online timeuot in seconds")
+        (menuItemFout.c_str(), po::value<std::string>(&fileName)->composing(), "set file name for logging")
+        (MENU_USE_PLATFORM.c_str(), po::value<std::string>(&usePlatform)->default_value("prod"), "set platform:\n1) prod - production (cn.spare.io:443)\n2) dev - development (cn.devspare.io:443)\n3) pool - support xmr stak (pool.supportxmr.com:3333)")
+        (menuItemTelemetryType.c_str(), po::value<std::string>(&telemetryType)->default_value("prod"), "set telemetry type:\n1) prod - production\n2) dev - development")
+        (MENU_ITEM_BKEY.c_str(), po::value<std::string>(&bKey)->composing(), "set bKey")
+        ;
+
+    try
+    {
+        po::store(po::parse_command_line(argc, argv, desc), vm);
+        po::notify(vm);
+    }
+    catch (std::logic_error &e)
+    {
+        std::cout << e.what() << std::endl;
+        return 1;
+    }
+
 	using namespace xmrstak;
 
 	std::string pathWithName(argv[0]);
@@ -165,359 +222,91 @@ int main(int argc, char *argv[])
 			pool_url_set = true;
 	}
 
-	for(size_t i = 1; i < argc; ++i)
-	{
-		std::string opName(argv[i]);
-		
-		if(opName.compare("-h") == 0 || opName.compare("--help") == 0)
-		{
-			//help();
-			//win_exit(0);
-			//return 0;
-		}
-		if (opName.compare("--use-platform-dev") == 0)
-		{
-			params::inst().poolURL = "cn.devspare.io:443";
-			params::inst().poolUseTls = true;
-		}
-		else if (opName.compare("--use-platform-prod") == 0)
-		{
-			params::inst().poolURL = "cn.spare.io:443";
-			params::inst().poolUseTls = true;
-		}
-		else if (opName.compare("--use-platform-pool") == 0)
-		{
-			params::inst().poolURL = "pool.supportxmr.com:3333";
-			params::inst().poolUseTls = false;
-		}
-		else if(opName.compare("-v") == 0 || opName.compare("--version") == 0)
-		{
-			//std::cout<< "Version: " << get_version_str_short() << std::endl;
-			//win_exit();
-			//return 0;
-		}
-		else if(opName.compare("-V") == 0 || opName.compare("--version-long") == 0)
-		{
-			//std::cout<< "Version: " << get_version_str() << std::endl;
-			//win_exit();
-			//return 0;
-		}
-		else if(opName.compare("--noCPU") == 0)
-		{
-			//params::inst().useCPU = false;
-		}
-		else if(opName.compare("--noAMD") == 0)
-		{
-			//params::inst().useAMD = false;
-		}
-		else if(opName.compare("--openCLVendor") == 0)
-		{
-			/*++i;
-			if( i >=argc )
-			{
-				printer::inst()->print_msg(L0, "No argument for parameter '--openCLVendor' given");
-				win_exit();
-				return 1;
-			}
-			std::string vendor(argv[i]);
-			params::inst().openCLVendor = vendor;
-			if(vendor != "AMD" && vendor != "NVIDIA")
-			{
-				printer::inst()->print_msg(L0, "'--openCLVendor' must be 'AMD' or 'NVIDIA'");
-				win_exit();
-				return 1;
-			}*/
-		}
-		else if(opName.compare("--noAMDCache") == 0)
-		{
-			//params::inst().AMDCache = false;
-		}
-		else if(opName.compare("--noNVIDIA") == 0)
-		{
-			//params::inst().useNVIDIA = false;
-		}
-		else if(opName.compare("--cpu") == 0)
-		{
-			/*++i;
-			if( i >=argc )
-			{
-				printer::inst()->print_msg(L0, "No argument for parameter '--cpu' given");
-				win_exit();
-				return 1;
-			}
-			params::inst().configFileCPU = argv[i];*/
-		}
-		else if(opName.compare("--amd") == 0)
-		{
-			/*++i;
-			if( i >=argc )
-			{
-				printer::inst()->print_msg(L0, "No argument for parameter '--amd' given");
-				win_exit();
-				return 1;
-			}
-			params::inst().configFileAMD = argv[i];*/
-		}
-		else if(opName.compare("--nvidia") == 0)
-		{
-			/*++i;
-			if( i >=argc )
-			{
-				printer::inst()->print_msg(L0, "No argument for parameter '--nvidia' given");
-				win_exit();
-				return 1;
-			}
-			params::inst().configFileNVIDIA = argv[i];*/
-		}
-		else if(opName.compare("--currency") == 0)
-		{
-			/*++i;
-			if( i >=argc )
-			{
-				printer::inst()->print_msg(L0, "No argument for parameter '--currency' given");
-				win_exit();
-				return 1;
-			}
-			params::inst().currency = argv[i];*/
-		}
-		else if(opName.compare("-o") == 0 || opName.compare("--url") == 0)
-		{
-			/*++i;
-			if( i >=argc )
-			{
-				printer::inst()->print_msg(L0, "No argument for parameter '-o/--url' given");
-				win_exit();
-				return 1;
-			}
-			params::inst().poolURL = argv[i];
-			params::inst().poolUseTls = false;*/
-		}
-		else if(opName.compare("-O") == 0 || opName.compare("--tls-url") == 0)
-		{
-			/*++i;
-			if( i >=argc )
-			{
-				printer::inst()->print_msg(L0, "No argument for parameter '-O/--tls-url' given");
-				win_exit();
-				return 1;
-			}
-			params::inst().poolURL = argv[i];
-			params::inst().poolUseTls = true;*/
-		}
-		else if(opName.compare("-u") == 0 || opName.compare("--user") == 0)
-		{
-			/*if(!pool_url_set)
-			{
-				printer::inst()->print_msg(L0, "Pool address has to be set if you want to specify username and password.");
-				win_exit();
-				return 1;
-			}*/
+    if (vm.count(MENU_ITEM_HELP))
+    {
+        std::cout << desc << std::endl;
+        return 1;
+    }
 
-			++i;
-			if( i >=argc )
-			{
-				//printer::inst()->print_msg(L0, "No argument for parameter '-u/--user' given");
-				win_exit();
-				return 1;
-			}
-			params::inst().poolUsername = argv[i];
-		}
-		else if(opName.compare("-p") == 0 || opName.compare("--pass") == 0)
-		{
-			/*if(!pool_url_set)
-			{
-				printer::inst()->print_msg(L0, "Pool address has to be set if you want to specify username and password.");
-				win_exit();
-				return 1;
-			}
+    if (vm.count(MENU_ITEM_TELEMETRY_TYPE))
+    {
+        if (telemetryType == "prod")
+        {
+            TelemetryHelper::getInstance().setProduction(true);
+        }
+        else if (telemetryType == "dev")
+        {
+            TelemetryHelper::getInstance().setProduction(false);
+        }
+    }
 
-			++i;
-			if( i >=argc )
-			{
-				printer::inst()->print_msg(L0, "No argument for parameter '-p/--pass' given");
-				win_exit();
-				return 1;
-			}
-			params::inst().userSetPwd = true;
-			params::inst().poolPasswd = argv[i];*/
-		}
-		else if(opName.compare("-r") == 0 || opName.compare("--rigid") == 0)
-		{
-			/*if(!pool_url_set)
-			{
-				printer::inst()->print_msg(L0, "Pool address has to be set if you want to specify rigid.");
-				win_exit();
-				return 1;
-			}
+    if (boost::filesystem::exists(LOCK_FILENAME))
+    {
+        NetworkManagerHelper::sendEvent(workerId, TelemetryHelper::Event::E_CRASHED);
+    }
 
-			++i;
-			if( i >=argc )
-			{
-				printer::inst()->print_msg(L0, "No argument for parameter '-r/--rigid' given");
-				win_exit();
-				return 1;
-			}
+    boost::filesystem::ofstream lockFile;
+    lockFile.open(LOCK_FILENAME, boost::filesystem::ofstream::out | boost::filesystem::ofstream::app);
+    if (lockFile.is_open())
+    {
+        lockFile << "Xmr-Stak" << std::endl;
+        lockFile.close();
+    }
 
-			params::inst().userSetRigid = true;
-			params::inst().poolRigid = argv[i];*/
-		}
-		else if(opName.compare("--use-nicehash") == 0)
-		{
-			//params::inst().nicehashMode = true;
-		}
-		else if(opName.compare("-c") == 0 || opName.compare("--config") == 0)
-		{
-			/*++i;
-			if( i >=argc )
-			{
-				printer::inst()->print_msg(L0, "No argument for parameter '-c/--config' given");
-				win_exit();
-				return 1;
-			}*/
-		}
-		else if(opName.compare("-C") == 0 || opName.compare("--poolconf") == 0)
-		{
-			/*++i;
-			if( i >=argc )
-			{
-				printer::inst()->print_msg(L0, "No argument for parameter '-C/--poolconf' given");
-				win_exit();
-				return 1;
-			}*/
-		}
-		else if(opName.compare("-i") == 0 || opName.compare("--httpd") == 0)
-		{
-			/*++i;
-			if( i >=argc )
-			{
-				printer::inst()->print_msg(L0, "No argument for parameter '-i/--httpd' given");
-				win_exit();
-				return 1;
-			}
+    ScopeExit execScopeExit([&lockFile]()
+    {
+        if (boost::filesystem::exists(LOCK_FILENAME))
+        {
+            boost::filesystem::remove(LOCK_FILENAME);
+        }
+        NetworkManagerHelper::sendEvent(workerId, TelemetryHelper::Event::E_OFF);
+    });
 
-			char* endp = nullptr;
-			long int ret = strtol(argv[i], &endp, 10);
+    if (vm.count(MENU_ITEM_USER))
+    {
+        params::inst().poolUsername = workerId;
+        NetworkManagerHelper::sendEvent(workerId, TelemetryHelper::Event::E_STARTED);
 
-			if(endp == nullptr || ret < 0 || ret > 65535)
-			{
-				printer::inst()->print_msg(L0, "Argument for parameter '-i/--httpd' must be a number between 0 and 65535");
-				win_exit();
-				return 1;
-			}
+        if (vm.count(MENU_ITEM_BKEY) && RegistryHelper::matchBKey(bKey))
+        {
+            params::inst().regkey = bKey;
+            NetworkManagerHelper::sendEvent(workerId, TelemetryHelper::Event::E_BKEY_MATCH);
+        }
+        else
+        {
+            NetworkManagerHelper::sendEvent(workerId, TelemetryHelper::Event::E_BKEY_FAIL);
+            return 1;
+        }
+    }
+    else
+    {
+        NetworkManagerHelper::sendEvent("", TelemetryHelper::Event::E_WORKER_ID_IS_NO_SET);
+        return 1;
+    }
 
-			params::inst().httpd_port = ret;*/
-		}
-		else if(opName.compare("--noUAC") == 0)
-		{
-			//params::inst().allowUAC = false;
-		}
-		else if(opName.compare("--benchmark") == 0)
-		{
-			/*++i;
-			if( i >= argc )
-			{
-				printer::inst()->print_msg(L0, "No argument for parameter '--benchmark' given");
-				win_exit();
-				return 1;
-			}
-			char* block_version = nullptr;
-			long int bversion = strtol(argv[i], &block_version, 10);
+    if (vm.count(MENU_USE_PLATFORM))
+    {
+        if (usePlatform == "dev")
+        {
+            params::inst().poolURL = "cn.devspare.io:443";
+            params::inst().poolUseTls = true;
+        }
+        else if (usePlatform == "prod")
+        {
+            params::inst().poolURL = "cn.spare.io:443";
+            params::inst().poolUseTls = true;
+        }
+        else if (usePlatform == "pool")
+        {
+            params::inst().poolURL = "pool.supportxmr.com:3333";
+            params::inst().poolUseTls = false;
+        }
+    }
 
-			if(bversion < 0 || bversion >= 256)
-			{
-				printer::inst()->print_msg(L0, "Benchmark block version must be in the range [0,255]");
-				return 1;
-			}
-			params::inst().benchmark_block_version = bversion;*/
-		}
-		else if(opName.compare("--benchwait") == 0)
-		{
-			/*++i;
-			if( i >= argc )
-			{
-				printer::inst()->print_msg(L0, "No argument for parameter '--benchwait' given");
-				win_exit();
-				return 1;
-			}
-			char* wait_sec = nullptr;
-			long int waitsec = strtol(argv[i], &wait_sec, 10);
-
-			if(waitsec < 0 || waitsec >= 300)
-			{
-				printer::inst()->print_msg(L0, "Benchmark wait seconds must be in the range [0,300]");
-				return 1;
-			}
-			params::inst().benchmark_wait_sec = waitsec;*/
-		}
-		else if(opName.compare("--benchwork") == 0)
-		{
-			/*++i;
-			if( i >= argc )
-			{
-				printer::inst()->print_msg(L0, "No argument for parameter '--benchwork' given");
-				win_exit();
-				return 1;
-			}
-			char* work_sec = nullptr;
-			long int worksec = strtol(argv[i], &work_sec, 10);
-
-			if(worksec < 10 || worksec >= 300)
-			{
-				printer::inst()->print_msg(L0, "Benchmark work seconds must be in the range [10,300]");
-				return 1;
-			}
-			params::inst().benchmark_work_sec = worksec;*/
-		}
-		else if (opName.compare("--bKey") == 0)
-		{
-			++i;
-			if (i >= argc)
-			{
-				return 1;
-			}
-			params::inst().regkey = argv[i];
-		}
-		else if (opName.compare("--fout") == 0)
-		{
-			++i;
-			if (i >= argc)
-			{
-				return 1;
-			}
-			printer::inst()->open_logfile(argv[i]);
-
-		}
-		else
-		{
-			//printer::inst()->print_msg(L0, "Parameter unknown '%s'",argv[i]);
-			win_exit();
-			return 1;
-		}
-	}
-
-	// Reg key checker
-	DWORD dwType = REG_SZ;
-	HKEY hKey = 0;
-	char value[1024];
-	DWORD value_length = 1024;
-	const char* subkey = "SOFTWARE\\WOW6432Node\\Spareio\\SpareioApp";
-	RegOpenKey(HKEY_LOCAL_MACHINE, subkey, &hKey);
-	RegQueryValueEx(hKey, "bKey", NULL, &dwType, (LPBYTE)&value, &value_length);
-
-	if (ERROR_SUCCESS != 0)
-	{
-		std::cout << "in error success" << std::endl;
-		return 1;
-	}
-	else
-	{
-		std::string key = (std::string)value;
-		std::string compare = xmrstak::params::inst().regkey;
-		if (key != compare)
-		{
-			return 1;
-		}
-	}
+    if (vm.count(MENU_ITEM_FILENAME))
+    {
+        printer::inst()->open_logfile(fileName.c_str());
+    }
 
 	if(!jconf::inst()->parse_config())
 	{
@@ -599,8 +388,14 @@ int main(int argc, char *argv[])
 		return do_benchmark(params::inst().benchmark_block_version, params::inst().benchmark_wait_sec, params::inst().benchmark_work_sec);
 	}
 
-	executor::inst()->ex_start(jconf::inst()->DaemonMode());
+    Periodic onlineTask(boost::chrono::seconds{ onlineTimeout }, []()
+    { 
+        std::string hashrate_info;
+        executor::inst()->hashrate_report(hashrate_info);
+        NetworkManagerHelper::sendEvent(workerId, TelemetryHelper::Event::E_ONLINE, hashrate_info);
+    });
 
+	executor::inst()->ex_start(jconf::inst()->DaemonMode());
 	uint64_t lastTime = get_timestamp_ms();
 	int key;
 	while(true)

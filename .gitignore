@@ -4,6 +4,7 @@ build/
 xmr-stak-cpu.layout
 xmr-stak-cpu.depend
 config-debug.txt
+CMakeSettings.json
 
 # netbeans project files
 /nbproject/
@@ -22,6 +23,9 @@ xmr-stak.kdev4
 cmake-build-release/
 cmake-build-debug/
 \.idea/
+
+# Visual studio
+.vs/
 
 # MacOS files
 .DS_Store

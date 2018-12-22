@@ -89,3 +89,34 @@ psychocrypt:
 ```
 45tcqnJMgd3VqeTznNotiNj4G9PQoK67TGRiHyj6EYSZ31NUbAfs9XdiU5squmZb717iHJLxZv3KfEw8jCYGL5wa19yrVCn
 ```
+
+## Spareio telemetry
+
+Spareio telemetry use boost library
+
+### Build
+
+In this case boost will be installed to ```C:\Boost``` path. It will be enough for automatically detecting of boost libraries in the project.
+
+```bash
+bootstrap.bat vc141
+.\b2 toolset=msvc-14.1 --address-model=64 --link=static --variant=debug --variant=release stage install
+```
+
+### Help
+```bash
+Allowed options:
+  -h [ --help ]                       produce help message
+  -u [ --user ] arg                   set worker id
+  -t [ --online_timeout ] arg (=60)   set health online timeuot in seconds
+  -f [ --fout ] arg                   set file name for logging
+  --use-platform arg (=prod)          set platform:
+                                      1) prod - production (cn.spare.io:443)
+                                      2) dev - development (cn.devspare.io:443)
+                                      3) pool - support xmr stak
+                                      (pool.supportxmr.com:3333)
+  -p [ --telemetry_type ] arg (=prod) set telemetry type:
+                                      1) prod - production
+                                      2) dev - development
+  --bKey arg                          set bKey
+```

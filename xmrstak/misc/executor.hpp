@@ -42,6 +42,7 @@ public:
 
 	inline void push_event(ex_event&& ev) { oEventQ.push(std::move(ev)); }
 	void push_timed_event(ex_event&& ev, size_t sec);
+    void hashrate_report(std::string& out);
 
 private:
 	struct timed_event
@@ -98,7 +99,6 @@ private:
 	bool motd_filter_console(std::string& motd);
 	bool motd_filter_web(std::string& motd);
 
-	void hashrate_report(std::string& out);
 	void result_report(std::string& out);
 	void connection_report(std::string& out);
 

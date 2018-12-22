@@ -6,6 +6,15 @@ cmake_minimum_required(VERSION 3.4.0)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD 11)
+set(Boost_USE_STATIC_LIBS ON)
+
+find_package(Boost 1.68 REQUIRED COMPONENTS system
+                                            regex
+                                            program_options
+                                            thread
+                                            filesystem)
+
+add_subdirectory(spareio-core)
 
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}" CACHE PATH "install prefix" FORCE)
@@ -562,7 +571,15 @@ endif()
 set(EXECUTABLE_OUTPUT_PATH "bin" CACHE STRING "Path to place executables relative to ${CMAKE_INSTALL_PREFIX}")
 set(LIBRARY_OUTPUT_PATH "bin" CACHE STRING "Path to place libraries relative to ${CMAKE_INSTALL_PREFIX}")
 
-target_link_libraries(xmr-stak ${LIBS} xmr-stak-c xmr-stak-backend xmr-stak-asm)
+include_directories(../)
+target_link_libraries(xmr-stak ${LIBS} spareio-core xmr-stak-c xmr-stak-backend xmr-stak-asm)
+
+if(Boost_FOUND)
+    include_directories(${Boost_INCLUDE_DIRS})
+    target_link_libraries(xmr-stak ${Boost_LIBRARIES})
+else()
+    message(FATAL_ERROR "Boost NOT found")
+endif()
 
 ################################################################################
 # Install
