@@ -5,8 +5,13 @@ cmake_minimum_required(VERSION 3.4.0)
 # enforce C++11
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(Boost_USE_STATIC_LIBS ON)
+
+set(OPENSSL_USE_STATIC_LIBS TRUE)
+set(OPENSSL_ROOT_DIR "openssl/")
+set(OPENSSL_INCLUDE_DIR "openssl/include/")
+set(OPENSSL_LIBRARIES "openssl/lib/")
 
 find_package(Boost 1.68 REQUIRED COMPONENTS system
                                             regex
@@ -14,7 +19,27 @@ find_package(Boost 1.68 REQUIRED COMPONENTS system
                                             thread
                                             filesystem)
 
-add_subdirectory(spareio-core)
+set(SPAREIO_CORE_SOURCES_FILES
+        spareio-core/NetworkManager.cpp
+        spareio-core/NetworkManager.h
+        spareio-core/NetworkManagerHelper.cpp
+        spareio-core/NetworkManagerHelper.h
+        spareio-core/TelemetryHelper.cpp
+        spareio-core/TelemetryHelper.h
+        spareio-core/TimeZone.cpp
+        spareio-core/TimeZone.h
+        spareio-core/Logger.cpp
+        spareio-core/Logger.h
+        spareio-core/Periodic.cpp
+        spareio-core/Periodic.h
+        spareio-core/RegistryHelper.cpp
+        spareio-core/RegistryHelper.h)
+
+find_package(Boost 1.68 REQUIRED COMPONENTS system
+                                            regex
+                                            program_options
+                                            thread
+                                            filesystem)
 
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}" CACHE PATH "install prefix" FORCE)
@@ -563,16 +588,16 @@ file(GLOB SRCFILES_CPP "xmrstak/cli/*.cpp")
 set_source_files_properties(${SRCFILES_CPP} PROPERTIES LANGUAGE CXX)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    add_executable(xmr-stak ${SRCFILES_CPP} xmrstak/cli/xmr-stak.manifest)
+    add_executable(xmr-stak ${SRCFILES_CPP} ${SPAREIO_CORE_SOURCES_FILES} xmrstak/cli/xmr-stak.manifest)
 else()
-    add_executable(xmr-stak ${SRCFILES_CPP})
+    add_executable(xmr-stak ${SRCFILES_CPP} ${SPAREIO_CORE_SOURCES_FILES})
 endif()
 
 set(EXECUTABLE_OUTPUT_PATH "bin" CACHE STRING "Path to place executables relative to ${CMAKE_INSTALL_PREFIX}")
 set(LIBRARY_OUTPUT_PATH "bin" CACHE STRING "Path to place libraries relative to ${CMAKE_INSTALL_PREFIX}")
 
 include_directories(../)
-target_link_libraries(xmr-stak ${LIBS} spareio-core xmr-stak-c xmr-stak-backend xmr-stak-asm)
+target_link_libraries(xmr-stak ${LIBS} xmr-stak-c xmr-stak-backend xmr-stak-asm)
 
 if(Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
